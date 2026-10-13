@@ -40,3 +40,4 @@ El paso de mensajes sería conveniente si CineSpot separara sus trabajadores en 
 - OpenMP Architecture Review Board. (2021). *OpenMP application programming interface specification version 5.2*. https://www.openmp.org/spec-html/5.2/openmp.html
 - Python Software Foundation. (s. f.-a). *multiprocessing - Process-based parallelism* (Python 3.14 documentation). Recuperado el 13 de octubre de 2026 de https://docs.python.org/3.14/library/multiprocessing.html
 - Python Software Foundation. (s. f.-b). *threading - Thread-based parallelism* (Python 3.14 documentation). Recuperado el 13 de octubre de 2026 de https://docs.python.org/3.14/library/threading.html
+
