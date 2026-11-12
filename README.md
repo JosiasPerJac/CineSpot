@@ -41,3 +41,49 @@ El paso de mensajes sería conveniente si CineSpot separara sus trabajadores en 
 - Python Software Foundation. (s. f.-a). *multiprocessing - Process-based parallelism* (Python 3.14 documentation). Recuperado el 13 de octubre de 2026 de https://docs.python.org/3.14/library/multiprocessing.html
 - Python Software Foundation. (s. f.-b). *threading - Thread-based parallelism* (Python 3.14 documentation). Recuperado el 13 de octubre de 2026 de https://docs.python.org/3.14/library/threading.html
 
+
+
+## Simulación de reservas concurrentes
+
+Desde la raíz del proyecto, ejecuta estos comandos con Python 3. En Windows puedes usar `py` si el comando `python` no está configurado. La simulación usa solo la biblioteca estándar.
+
+```text
+python reservas_concurrentes.py
+python -m unittest -v
+```
+
+Cada ejecución compara cuatro escenarios. En cada escenario se crea una instancia con una plaza disponible y se comparte entre dos hilos que representan a Ana y Luis. `Cupos` almacena la disponibilidad en un entero. `Asientos` usa un diccionario para una función, con el identificador del asiento como clave y el nombre del titular como valor. Un valor `None` indica que el asiento sigue libre.
+
+### Sección crítica y exclusión mutua
+
+La sección crítica empieza al consultar el recurso, incluye la validación de disponibilidad y termina al actualizar el contador o registrar al titular. Sin exclusión mutua, ambos hilos pueden validar el mismo estado inicial. Con el entero, ambos calculan `1 - 1` y escriben `0`, así que una escritura se pierde y se confirman dos reservas para un solo cupo. Con el diccionario, ambos confirman `A1` y la última escritura sobrescribe al titular anterior.
+
+Una barrera de inicio reúne a los dos hilos. En el escenario sin `Lock`, una segunda barrera los espera después de validar y antes de escribir para reproducir la carrera en cada ejecución. En el escenario sincronizado, cada instancia tiene su propio `threading.Lock`. El hilo lo adquiere al entrar al bloque `with`, antes de consultar el recurso, y lo libera al salir, incluso si devuelve un rechazo. El siguiente hilo lee el estado actualizado y rechaza la segunda solicitud.
+
+### Resultados observados
+
+| Recurso | Modo | Confirmadas | Rechazadas | Estado final |
+|---|---|---:|---:|---|
+| Entero | Sin `Lock` | 2 | 0 | `0` cupos, con una doble confirmación |
+| Entero | Con `Lock` | 1 | 1 | `0` cupos |
+| Diccionario | Sin `Lock` | 2 | 0 | `A1` registra un titular y el otro recibió una confirmación |
+| Diccionario | Con `Lock` | 1 | 1 | `A1` registra al único cliente confirmado |
+
+### Evidencia de ejecución
+
+Salida capturada con Python 3.14.4. El cliente que queda registrado puede variar entre ejecuciones.
+
+```text
+Entero sin Lock | Ana=confirmada, Luis=confirmada | Estado final: 0
+Entero con Lock | Ana=rechazada, Luis=confirmada | Estado final: 0
+Diccionario sin Lock | Ana=confirmada, Luis=confirmada | Estado final: {'A1': 'Luis'}
+Diccionario con Lock | Ana=rechazada, Luis=confirmada | Estado final: {'A1': 'Luis'}
+```
+
+Resumen de la ejecución de las cinco pruebas automatizadas, que cubren los cuatro escenarios y el rechazo de un asiento inexistente.
+
+```text
+Ran 5 tests in 0.003s
+
+OK
+```
