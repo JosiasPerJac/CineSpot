@@ -1,0 +1,10 @@
+{
+  "funcion": "Sala 3 - 19:00",
+  "asientos": ["A1", "A2"],
+  "solicitudes": [
+    {"cliente": "Ana", "asiento": "A1"},
+    {"cliente": "Luis", "asiento": "A1"},
+    {"cliente": "Marta", "asiento": "A1"},
+    {"cliente": "Pedro", "asiento": "A2"}
+  ]
+}
