@@ -1,5 +1,6 @@
-"""CineSpot: interfaz por consola para ejecutar las cuatro versiones."""
+"""CineSpot: interfaz por consola para ejecutar y comparar las cuatro versiones."""
 
+import random
 import threading
 
 from reservas_concurrentes import SimuladorCineSpot
@@ -14,7 +15,7 @@ VERSIONES = {
 config = {
     "hilos": 3,
     "asientos": ["A1", "A2", "A3"],
-    "asiento_pedido": "A1",
+    "asiento_pedido": "A1",  # o "aleatorio"
     "demora_ms": 100,
 }
 
@@ -23,6 +24,8 @@ _impresion = threading.Lock()  # Solo evita que las filas se mezclen al imprimir
 
 def solicitudes():
     usuarios = [f"U{i:02d}" for i in range(1, config["hilos"] + 1)]
+    if config["asiento_pedido"] == "aleatorio":
+        return [(u, random.choice(config["asientos"])) for u in usuarios]
     return [(u, config["asiento_pedido"]) for u in usuarios]
 
 
@@ -35,10 +38,12 @@ def mostrar_menu():
     print("  2. Tipo básico (entero)        CON Lock")
     print("  3. Tipo complejo (diccionario) SIN Lock")
     print("  4. Tipo complejo (diccionario) CON Lock")
+    print("  5. Ejecutar y comparar las 4 versiones")
+    print("  6. Cambiar configuración")
     print("  0. Salir")
 
 
-def ejecutar_version(tipo, usar_lock):
+def ejecutar_version(tipo, usar_lock, pedidos=None):
     anchos = {}
 
     def imprimir_fila(t):
@@ -46,7 +51,7 @@ def ejecutar_version(tipo, usar_lock):
             print(f"{t.name:<8} {t.id_hilo:<8} {t.operacion:<16} "
                   f"{t.antes:<{anchos['estado']}} {t.resultado:<20} {t.despues}")
 
-    simulador = SimuladorCineSpot(tipo, usar_lock, solicitudes(), config["asientos"],
+    simulador = SimuladorCineSpot(tipo, usar_lock, pedidos or solicitudes(), config["asientos"],
                                   config["demora_ms"] / 1000, imprimir_fila)
     anchos["estado"] = max(len(simulador.estado_inicial), len("Estado antes"))
 
@@ -70,6 +75,51 @@ def ejecutar_version(tipo, usar_lock):
                   f"usuarios ({', '.join(usuarios)}).")
     else:
         print("Sin condición de carrera: cada asiento se confirmó a un solo usuario.")
+    return simulador, estado_final
+
+
+def comparar():
+    filas = []
+    pedidos = solicitudes()  # Las 4 versiones reciben exactamente las mismas solicitudes.
+    for tipo, usar_lock in VERSIONES.values():
+        simulador, estado_final = ejecutar_version(tipo, usar_lock, pedidos)
+        filas.append((simulador.version, len(simulador.confirmadas()),
+                      "Sí" if simulador.condiciones_de_carrera() else "No", estado_final))
+
+    print("\n================ Comparación de las 4 versiones ================")
+    print(f"{'Versión':<32} {'Confirmadas':<12} {'¿Carrera?':<10} Estado final")
+    for version, confirmadas, carrera, estado in filas:
+        print(f"{version:<32} {confirmadas:<12} {carrera:<10} {estado}")
+
+
+def pedir(texto, actual):
+    valor = input(f"{texto} [{actual}]: ").strip()
+    return valor or str(actual)
+
+
+def pedir_entero(texto, actual, minimo, maximo):
+    while True:
+        valor = pedir(texto, actual)
+        if valor.isdigit() and minimo <= int(valor) <= maximo:
+            return int(valor)
+        print(f"  Ingresa un número entre {minimo} y {maximo}.")
+
+
+def configurar():
+    print("\nPresiona Enter para conservar el valor actual.")
+    config["hilos"] = pedir_entero("Número de hilos (usuarios)", config["hilos"], 1, 50)
+    while True:
+        asientos = pedir("Asientos de la sala, separados por coma",
+                         ",".join(config["asientos"]))
+        lista = [a.strip().upper() for a in asientos.split(",") if a.strip()]
+        if lista:
+            config["asientos"] = list(dict.fromkeys(lista))
+            break
+        print("  Ingresa al menos un asiento.")
+    pedido = pedir("Asiento que piden los hilos (o 'aleatorio')", config["asiento_pedido"])
+    config["asiento_pedido"] = "aleatorio" if pedido.lower() == "aleatorio" else pedido.upper()
+    config["demora_ms"] = pedir_entero("Demora entre validar y registrar (ms)",
+                                       config["demora_ms"], 0, 2000)
 
 
 def main():
@@ -78,6 +128,11 @@ def main():
         opcion = input("Elige una opción: ").strip()
         if opcion in VERSIONES:
             ejecutar_version(*VERSIONES[opcion])
+        elif opcion == "5":
+            comparar()
+        elif opcion == "6":
+            configurar()
+            continue
         elif opcion == "0":
             print("Hasta luego.")
             return
