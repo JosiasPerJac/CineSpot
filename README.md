@@ -43,17 +43,125 @@ El paso de mensajes sería conveniente si CineSpot separara sus trabajadores en 
 
 
 
-## Simulación de reservas concurrentes
+## Interfaz por consola (Sprint 2)
 
-Tres clientes (Ana, Luis y Marta) intentan reservar el asiento `A1` al mismo tiempo, cada uno en su propio hilo.
+La interfaz permite configurar, ejecutar y comparar las cuatro versiones de la solución concurrente. Solo usa la biblioteca estándar de Python 3.
 
 ```text
-python reservas_concurrentes.py
+python interfaz_consola.py
 python -m unittest -v
 ```
 
-1. **Caso de error:** con `USAR_LOCK = False`, los tres ven `A1` libre antes de que alguno lo registre y el asiento se vende varias veces. El programa imprime `ERROR`.
-2. **Corrección:** cambia la línea a `USAR_LOCK = True`.
-3. **Caso de éxito:** el `Lock` hace que solo un hilo a la vez revise y reserve el asiento. Los demás son rechazados y el programa imprime `ÉXITO`.
+En Windows puedes usar `py` en lugar de `python`.
 
-Los mensajes se imprimen mientras los hilos se ejecutan, por eso el orden y el ganador cambian en cada ejecución.
+### Archivos
+
+| Archivo | Contenido |
+|---|---|
+| `reservas_concurrentes.py` | Lógica: `SalaCineBasica`, `SalaCine`, `TrabajadorReserva` y `SimuladorCineSpot`. |
+| `interfaz_consola.py` | Menú interactivo, configuración y visualización de los hilos. |
+| `test_reservas_concurrentes.py` | Pruebas automatizadas de las cuatro versiones. |
+
+### Las cuatro versiones
+
+| Opción | Recurso compartido | Sincronización |
+|---|---|---|
+| 1 | Básico: un entero (`0` disponible, `1` reservado) para un solo asiento | Sin `Lock` |
+| 2 | Básico: un entero | Con `threading.Lock` |
+| 3 | Complejo: diccionario `{asiento: {"estado", "usuario"}}` por función | Sin `Lock` |
+| 4 | Complejo: diccionario | Con `threading.Lock` |
+
+### Menú principal
+
+```text
+========== CineSpot · Reservas concurrentes ==========
+Configuración: 3 hilos | Asientos: A1, A2, A3 | Asiento pedido: A1 | Demora: 100 ms
+  1. Tipo básico (entero)        SIN Lock
+  2. Tipo básico (entero)        CON Lock
+  3. Tipo complejo (diccionario) SIN Lock
+  4. Tipo complejo (diccionario) CON Lock
+  5. Ejecutar y comparar las 4 versiones
+  6. Cambiar configuración
+  0. Salir
+```
+
+- **Opciones 1 a 4:** ejecutan una versión y muestran la tabla de hilos.
+- **Opción 5:** ejecuta las cuatro versiones con la misma lista inicial de solicitudes y muestra una tabla comparativa. El tipo básico concentra todas las solicitudes en su único asiento, `A1`.
+- **Opción 6:** cambia los parámetros. Al presionar Enter se conserva el valor actual.
+
+| Parámetro | Descripción | Valor inicial |
+|---|---|---|
+| Número de hilos | Cada hilo atiende la solicitud de un usuario (`U01`, `U02`, ...). De 1 a 50. | `3` |
+| Asientos de la sala | Lista separada por comas. Solo la usa el tipo complejo; el básico tiene un único asiento. | `A1,A2,A3` |
+| Asiento pedido | En el tipo complejo, asiento que solicitan todos los hilos, o `aleatorio` para elegir uno de la sala por hilo. Un asiento inexistente produce `solicitud_invalida`. El tipo básico siempre utiliza `A1`. | `A1` |
+| Demora (ms) | Tiempo simulado entre validar el asiento y registrarlo. Con `0` la carrera puede no aparecer. | `100` |
+
+### Visualización de la ejecución de los hilos
+
+Cada fila se imprime en el momento en que el hilo termina su operación, por eso el orden de las filas cambia entre ejecuciones.
+
+| Columna | Significado |
+|---|---|
+| Hilo | Nombre del hilo (`Hilo-1`, `Hilo-2`, ...). |
+| ID | Identificador del hilo en el sistema operativo (`threading.get_native_id()`). |
+| Operación | Usuario y asiento que solicita, por ejemplo `U01 reserva A1`. |
+| Estado antes | Estado del recurso que leyó el hilo antes de operar. |
+| Resultado | `reserva_confirmada`, `asiento_ocupado` o `solicitud_invalida`. |
+| Estado después | Estado del recurso después de la operación del hilo. |
+
+Al final se muestran el **estado final del recurso compartido**, las reservas confirmadas y rechazadas, y si hubo una **condición de carrera** (un asiento confirmado a más de un usuario).
+
+### Ejemplo: tipo complejo sin `Lock` (opción 3)
+
+```text
+--- Complejo (diccionario) SIN Lock | Función F01 ---
+Estado inicial: A1=libre, A2=libre, A3=libre
+
+Hilo     ID       Operación        Estado antes                 Resultado            Estado después
+----------------------------------------------------------------------------------------------------------
+Hilo-2   7092757  U02 reserva A1   A1=libre, A2=libre, A3=libre reserva_confirmada   A1=U02, A2=libre, A3=libre
+Hilo-1   7092756  U01 reserva A1   A1=libre, A2=libre, A3=libre reserva_confirmada   A1=U01, A2=libre, A3=libre
+Hilo-3   7092758  U03 reserva A1   A1=libre, A2=libre, A3=libre reserva_confirmada   A1=U03, A2=libre, A3=libre
+
+Estado final del recurso: A1=U03, A2=libre, A3=libre
+Confirmadas: 3 (U01, U02, U03) | Rechazadas: 0
+CONDICIÓN DE CARRERA: A1 se confirmó a 3 usuarios (U01, U02, U03).
+```
+
+Los tres hilos leyeron `A1=libre` antes de que alguno escribiera, así que los tres recibieron confirmación y cada escritura sobrescribió a la anterior: en el estado final solo queda el último que escribió.
+
+### Ejemplo: tipo complejo con `Lock` (opción 4)
+
+```text
+--- Complejo (diccionario) CON Lock | Función F01 ---
+Estado inicial: A1=libre, A2=libre, A3=libre
+
+Hilo     ID       Operación        Estado antes                 Resultado            Estado después
+----------------------------------------------------------------------------------------------------------
+Hilo-1   7092761  U01 reserva A1   A1=libre, A2=libre, A3=libre reserva_confirmada   A1=U01, A2=libre, A3=libre
+Hilo-2   7092762  U02 reserva A1   A1=U01, A2=libre, A3=libre   asiento_ocupado      A1=U01, A2=libre, A3=libre
+Hilo-3   7092763  U03 reserva A1   A1=U01, A2=libre, A3=libre   asiento_ocupado      A1=U01, A2=libre, A3=libre
+
+Estado final del recurso: A1=U01, A2=libre, A3=libre
+Confirmadas: 1 (U01) | Rechazadas: 2
+Sin condición de carrera: cada asiento se confirmó a un solo usuario.
+```
+
+El `Lock` hace que la lectura, la validación y la escritura ocurran como una sola sección crítica: cada hilo ve el estado que dejó el anterior.
+
+### Ejemplo: comparación de las cuatro versiones (opción 5)
+
+```text
+================ Comparación de las 4 versiones ================
+Versión                          Confirmadas  ¿Carrera?  Estado final
+Básico (entero) SIN Lock         3            Sí         1 (reservado)
+Básico (entero) CON Lock         1            No         1 (reservado)
+Complejo (diccionario) SIN Lock  3            Sí         A1=U01, A2=libre, A3=libre
+Complejo (diccionario) CON Lock  1            No         A1=U01, A2=libre, A3=libre
+```
+
+### Evaluación del mecanismo de sincronización
+
+- **Sin `Lock`**, las dos representaciones confirman el mismo asiento a varios usuarios. En el tipo básico el error ni siquiera queda registrado en el estado (solo guarda `1`); en el complejo, el último hilo en escribir sobrescribe a los demás.
+- **Con `Lock`**, en ambas representaciones solo un hilo confirma cada asiento y el resto recibe `asiento_ocupado`.
+- El tipo complejo conserva el usuario de cada asiento, por eso permite ver quién quedó registrado y detectar exactamente qué reservas se perdieron.
