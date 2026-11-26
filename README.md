@@ -58,9 +58,15 @@ En Windows puedes usar `py` en lugar de `python`.
 
 | Archivo | Contenido |
 |---|---|
-| `reservas_concurrentes.py` | Lógica: `SalaCineBasica`, `SalaCine`, `TrabajadorReserva` y `SimuladorCineSpot`. |
+| `salas.py` | `SalaCineBasica` y `SalaCine`: estado de los asientos y reservas con o sin `Lock`. |
+| `trabajador.py` | `TrabajadorReserva`: solicitud que ejecuta cada hilo y registro de su resultado. |
+| `simulador.py` | `SimuladorCineSpot`: creación de la sala, ejecución de los hilos y detección de reservas duplicadas. |
 | `interfaz_consola.py` | Menú interactivo, configuración y visualización de los hilos. |
 | `test_reservas_concurrentes.py` | Pruebas automatizadas de las cuatro versiones. |
+
+La interfaz llama al simulador, el simulador crea los trabajadores y cada
+trabajador solicita una reserva a la sala. Las clases de sala se encargan
+de consultar y actualizar el recurso compartido.
 
 ### Las cuatro versiones
 
@@ -119,9 +125,9 @@ Estado inicial: A1=libre, A2=libre, A3=libre
 
 Hilo     ID       Operación        Estado antes                 Resultado            Estado después
 ----------------------------------------------------------------------------------------------------------
-Hilo-2   7092757  U02 reserva A1   A1=libre, A2=libre, A3=libre reserva_confirmada   A1=U02, A2=libre, A3=libre
-Hilo-1   7092756  U01 reserva A1   A1=libre, A2=libre, A3=libre reserva_confirmada   A1=U01, A2=libre, A3=libre
-Hilo-3   7092758  U03 reserva A1   A1=libre, A2=libre, A3=libre reserva_confirmada   A1=U03, A2=libre, A3=libre
+Hilo-1   7123324  U01 reserva A1   A1=libre, A2=libre, A3=libre reserva_confirmada   A1=U01, A2=libre, A3=libre
+Hilo-2   7123325  U02 reserva A1   A1=libre, A2=libre, A3=libre reserva_confirmada   A1=U02, A2=libre, A3=libre
+Hilo-3   7123326  U03 reserva A1   A1=libre, A2=libre, A3=libre reserva_confirmada   A1=U03, A2=libre, A3=libre
 
 Estado final del recurso: A1=U03, A2=libre, A3=libre
 Confirmadas: 3 (U01, U02, U03) | Rechazadas: 0
@@ -138,9 +144,9 @@ Estado inicial: A1=libre, A2=libre, A3=libre
 
 Hilo     ID       Operación        Estado antes                 Resultado            Estado después
 ----------------------------------------------------------------------------------------------------------
-Hilo-1   7092761  U01 reserva A1   A1=libre, A2=libre, A3=libre reserva_confirmada   A1=U01, A2=libre, A3=libre
-Hilo-2   7092762  U02 reserva A1   A1=U01, A2=libre, A3=libre   asiento_ocupado      A1=U01, A2=libre, A3=libre
-Hilo-3   7092763  U03 reserva A1   A1=U01, A2=libre, A3=libre   asiento_ocupado      A1=U01, A2=libre, A3=libre
+Hilo-1   7123327  U01 reserva A1   A1=libre, A2=libre, A3=libre reserva_confirmada   A1=U01, A2=libre, A3=libre
+Hilo-2   7123328  U02 reserva A1   A1=U01, A2=libre, A3=libre   asiento_ocupado      A1=U01, A2=libre, A3=libre
+Hilo-3   7123329  U03 reserva A1   A1=U01, A2=libre, A3=libre   asiento_ocupado      A1=U01, A2=libre, A3=libre
 
 Estado final del recurso: A1=U01, A2=libre, A3=libre
 Confirmadas: 1 (U01) | Rechazadas: 2

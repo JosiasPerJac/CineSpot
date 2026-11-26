@@ -3,7 +3,7 @@
 import random
 import threading
 
-from reservas_concurrentes import SimuladorCineSpot
+from simulador import SimuladorCineSpot
 
 VERSIONES = {
     "1": ("basico", False),

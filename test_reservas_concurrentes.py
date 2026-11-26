@@ -1,12 +1,12 @@
 import unittest
 
-from reservas_concurrentes import (
+from salas import (
     CONFIRMADA,
     INVALIDA,
     OCUPADO,
     SalaCine,
-    SimuladorCineSpot,
 )
+from simulador import SimuladorCineSpot
 
 SOLICITUDES = [("U01", "A1"), ("U02", "A1"), ("U03", "A1")]
 ASIENTOS = ["A1", "A2"]
